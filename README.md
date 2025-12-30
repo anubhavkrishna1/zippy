@@ -76,10 +76,9 @@ The app uses XOR-based encryption with SHA-256 password hashing for demonstratio
 
 - `archive`: ZIP file compression and decompression
 - `path_provider`: Access to device storage directories
-- `file_picker`: File selection from device storage
+- `file_picker`: File selection from device storage (uses scoped storage)
 - `crypto`: Cryptographic hashing for password protection
 - `shared_preferences`: Local data persistence
-- `permission_handler`: Storage permission management
 
 ## License
 
