@@ -10,8 +10,13 @@ class ArchiveService {
   static final ArchiveService instance = ArchiveService._();
   ArchiveService._();
 
+  // NOTE: This implementation uses simple XOR-based encryption for demonstration purposes.
+  // For production use, implement proper encryption using AES-256-GCM with secure key
+  // derivation functions like PBKDF2 or Argon2. Consider using packages like:
+  // - encrypt (for AES encryption)
+  // - cryptography (for modern cryptographic algorithms)
+  
   // Simple XOR-based encryption for demonstration
-  // In production, use proper encryption libraries
   Uint8List _encryptData(Uint8List data, String password) {
     final key = sha256.convert(utf8.encode(password)).bytes;
     final encrypted = Uint8List(data.length);

@@ -6,6 +6,7 @@ import '../models/file_item.dart';
 import '../services/storage_service.dart';
 import '../services/archive_service.dart';
 import '../widgets/file_item_card.dart';
+import '../utils/format_utils.dart';
 
 class ArchiveDetailScreen extends StatefulWidget {
   final Archive archive;
@@ -220,15 +221,7 @@ class _ArchiveDetailScreenState extends State<ArchiveDetailScreen> {
 
   String _formatTotalSize() {
     final totalSize = _files.fold<int>(0, (sum, file) => sum + file.size);
-    if (totalSize < 1024) {
-      return '$totalSize B';
-    } else if (totalSize < 1024 * 1024) {
-      return '${(totalSize / 1024).toStringAsFixed(2)} KB';
-    } else if (totalSize < 1024 * 1024 * 1024) {
-      return '${(totalSize / (1024 * 1024)).toStringAsFixed(2)} MB';
-    } else {
-      return '${(totalSize / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
-    }
+    return FormatUtils.formatSize(totalSize);
   }
 
   @override
@@ -362,6 +355,6 @@ class _ArchiveDetailScreenState extends State<ArchiveDetailScreen> {
   }
 
   String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    return FormatUtils.formatDate(date);
   }
 }

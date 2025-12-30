@@ -1,3 +1,5 @@
+import '../utils/format_utils.dart';
+
 class FileItem {
   final String name;
   final int size;
@@ -30,14 +32,6 @@ class FileItem {
   }
 
   String get formattedSize {
-    if (size < 1024) {
-      return '$size B';
-    } else if (size < 1024 * 1024) {
-      return '${(size / 1024).toStringAsFixed(2)} KB';
-    } else if (size < 1024 * 1024 * 1024) {
-      return '${(size / (1024 * 1024)).toStringAsFixed(2)} MB';
-    } else {
-      return '${(size / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
-    }
+    return FormatUtils.formatSize(size);
   }
 }

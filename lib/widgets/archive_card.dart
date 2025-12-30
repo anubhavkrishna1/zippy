@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/archive.dart';
+import '../utils/format_utils.dart';
 
 class ArchiveCard extends StatelessWidget {
   final Archive archive;
@@ -12,39 +13,6 @@ class ArchiveCard extends StatelessWidget {
     required this.onTap,
     required this.onDelete,
   });
-
-  String _formatSize(int bytes) {
-    if (bytes < 1024) {
-      return '$bytes B';
-    } else if (bytes < 1024 * 1024) {
-      return '${(bytes / 1024).toStringAsFixed(2)} KB';
-    } else if (bytes < 1024 * 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
-    } else {
-      return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
-    }
-  }
-
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-
-    if (difference.inDays == 0) {
-      if (difference.inHours == 0) {
-        if (difference.inMinutes == 0) {
-          return 'Just now';
-        }
-        return '${difference.inMinutes}m ago';
-      }
-      return '${difference.inHours}h ago';
-    } else if (difference.inDays == 1) {
-      return 'Yesterday';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays}d ago';
-    } else {
-      return '${date.day}/${date.month}/${date.year}';
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +51,7 @@ class ArchiveCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${archive.fileCount} files • ${_formatSize(archive.totalSize)}',
+                      '${archive.fileCount} files • ${FormatUtils.formatSize(archive.totalSize)}',
                       style: TextStyle(
                         color: Colors.grey[600],
                         fontSize: 14,
@@ -91,7 +59,7 @@ class ArchiveCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Modified ${_formatDate(archive.modifiedAt)}',
+                      'Modified ${FormatUtils.formatRelativeDate(archive.modifiedAt)}',
                       style: TextStyle(
                         color: Colors.grey[500],
                         fontSize: 12,
