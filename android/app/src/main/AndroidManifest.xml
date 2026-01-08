@@ -1,5 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- No storage permissions needed - using scoped storage via file_picker -->
+    <!-- Storage permissions for accessing external storage -->
+    <!-- These are needed only for Android < 10 for external storage -->
+    <!-- For Android 10+, app-specific directories don't need permissions -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
     
     <application
         android:label="Zippy"

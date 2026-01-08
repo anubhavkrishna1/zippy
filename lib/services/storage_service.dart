@@ -15,7 +15,66 @@ class StorageService {
   static const String _archivesKey = 'archives';
   
   Future<void> initialize() async {
-    _appDirectory = await getApplicationDocumentsDirectory();
+    // Use external storage directory which persists across app uninstalls
+    // This is the app-specific directory in external storage
+    Directory? baseDirectory;
+    
+    if (Platform.isAndroid) {
+      // For Android, use external storage directory
+      // Path: /storage/emulated/0/Android/data/com.example.zippy/files
+      // Note: This requires the app to handle permissions properly
+      try {
+        baseDirectory = await getExternalStorageDirectory();
+      } catch (e) {
+        // Fall back to application documents directory
+        baseDirectory = await getApplicationDocumentsDirectory();
+      }
+    } else if (Platform.isLinux) {
+      // For Linux, use Documents directory in user's home
+      try {
+        final home = Platform.environment['HOME'];
+        if (home != null) {
+          baseDirectory = Directory('$home/Documents');
+        } else {
+          baseDirectory = await getApplicationDocumentsDirectory();
+        }
+      } catch (e) {
+        baseDirectory = await getApplicationDocumentsDirectory();
+      }
+    } else if (Platform.isMacOS) {
+      // For macOS, use Documents directory
+      try {
+        baseDirectory = await getApplicationDocumentsDirectory();
+        // On macOS, this typically points to ~/Library/Containers/app/Data/Documents
+        // We'll use this as the base
+      } catch (e) {
+        baseDirectory = await getApplicationDocumentsDirectory();
+      }
+    } else if (Platform.isWindows) {
+      // For Windows, use Documents directory
+      try {
+        baseDirectory = await getApplicationDocumentsDirectory();
+      } catch (e) {
+        baseDirectory = await getApplicationDocumentsDirectory();
+      }
+    } else {
+      // For other platforms, use application documents directory
+      baseDirectory = await getApplicationDocumentsDirectory();
+    }
+    
+    // Create a 'zippy' subdirectory for storing archives
+    if (baseDirectory != null) {
+      _appDirectory = Directory('${baseDirectory.path}/zippy');
+      
+      // Create the directory if it doesn't exist
+      if (!await _appDirectory.exists()) {
+        await _appDirectory.create(recursive: true);
+      }
+    } else {
+      // Ultimate fallback
+      _appDirectory = await getApplicationDocumentsDirectory();
+    }
+    
     _prefs = await SharedPreferences.getInstance();
   }
   
