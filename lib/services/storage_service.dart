@@ -47,21 +47,12 @@ class StorageService {
         baseDirectory = await getApplicationDocumentsDirectory();
       }
     } else if (Platform.isMacOS) {
-      // For macOS, use Documents directory
-      try {
-        baseDirectory = await getApplicationDocumentsDirectory();
-        // On macOS, this typically points to ~/Library/Containers/app/Data/Documents
-        // We'll use this as the base
-      } catch (e) {
-        baseDirectory = await getApplicationDocumentsDirectory();
-      }
+      // For macOS, use application documents directory
+      // On macOS, this typically points to ~/Library/Containers/app/Data/Documents
+      baseDirectory = await getApplicationDocumentsDirectory();
     } else if (Platform.isWindows) {
-      // For Windows, use Documents directory
-      try {
-        baseDirectory = await getApplicationDocumentsDirectory();
-      } catch (e) {
-        baseDirectory = await getApplicationDocumentsDirectory();
-      }
+      // For Windows, use application documents directory
+      baseDirectory = await getApplicationDocumentsDirectory();
     } else {
       // For other platforms, use application documents directory
       baseDirectory = await getApplicationDocumentsDirectory();
