@@ -91,19 +91,32 @@ class ArchiveService {
     final zipPath = StorageService.instance.getArchivePath(archiveId);
     final zipFile = File(zipPath);
     
-    Archive archive;
+    Archive existingArchive;
     
     if (await zipFile.exists()) {
       final encrypted = await zipFile.readAsBytes();
       final decrypted = _decryptData(encrypted, password);
       
       try {
-        archive = ZipDecoder().decodeBytes(decrypted);
+        existingArchive = ZipDecoder().decodeBytes(decrypted);
       } catch (e) {
         throw Exception('Invalid password');
       }
     } else {
-      archive = Archive();
+      existingArchive = Archive();
+    }
+    
+    // Create a new mutable archive
+    final newArchive = Archive();
+    
+    // Get list of filenames to add
+    final fileNamesToAdd = filesToAdd.map((f) => f.path.split('/').last).toSet();
+    
+    // Copy existing files except ones being replaced
+    for (final existingFile in existingArchive.files) {
+      if (!fileNamesToAdd.contains(existingFile.name)) {
+        newArchive.addFile(existingFile);
+      }
     }
     
     // Add new files to the archive
@@ -111,11 +124,8 @@ class ArchiveService {
       final fileName = file.path.split('/').last;
       final fileBytes = await file.readAsBytes();
       
-      // Remove if exists
-      archive.files.removeWhere((f) => f.name == fileName);
-      
       // Add new file
-      archive.addFile(ArchiveFile(
+      newArchive.addFile(ArchiveFile(
         fileName,
         fileBytes.length,
         fileBytes,
@@ -123,7 +133,7 @@ class ArchiveService {
     }
     
     // Encode and encrypt
-    final zipData = ZipEncoder().encode(archive);
+    final zipData = ZipEncoder().encode(newArchive);
     if (zipData != null) {
       final encrypted = _encryptData(Uint8List.fromList(zipData), password);
       await zipFile.writeAsBytes(encrypted);
@@ -131,7 +141,7 @@ class ArchiveService {
     
     // Update file list in storage
     final fileItems = <FileItem>[];
-    for (final file in archive.files) {
+    for (final file in newArchive.files) {
       if (file.isFile) {
         fileItems.add(FileItem(
           name: file.name,
@@ -159,18 +169,25 @@ class ArchiveService {
     final encrypted = await zipFile.readAsBytes();
     final decrypted = _decryptData(encrypted, password);
     
-    Archive archive;
+    Archive existingArchive;
     try {
-      archive = ZipDecoder().decodeBytes(decrypted);
+      existingArchive = ZipDecoder().decodeBytes(decrypted);
     } catch (e) {
       throw Exception('Invalid password');
     }
     
-    // Remove the file
-    archive.files.removeWhere((f) => f.name == fileName);
+    // Create a new mutable archive
+    final newArchive = Archive();
+    
+    // Copy all files except the one to remove
+    for (final existingFile in existingArchive.files) {
+      if (existingFile.name != fileName) {
+        newArchive.addFile(existingFile);
+      }
+    }
     
     // Encode and encrypt
-    final zipData = ZipEncoder().encode(archive);
+    final zipData = ZipEncoder().encode(newArchive);
     if (zipData != null) {
       final encrypted = _encryptData(Uint8List.fromList(zipData), password);
       await zipFile.writeAsBytes(encrypted);
@@ -178,7 +195,7 @@ class ArchiveService {
     
     // Update file list in storage
     final fileItems = <FileItem>[];
-    for (final file in archive.files) {
+    for (final file in newArchive.files) {
       if (file.isFile) {
         fileItems.add(FileItem(
           name: file.name,

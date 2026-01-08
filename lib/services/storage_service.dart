@@ -15,7 +15,51 @@ class StorageService {
   static const String _archivesKey = 'archives';
   
   Future<void> initialize() async {
-    _appDirectory = await getApplicationDocumentsDirectory();
+    // Use platform-appropriate storage directory for archives
+    // Android: External storage (app-specific, visible but still deleted on uninstall)
+    // Linux: Documents directory in user's home (persists)
+    // Other platforms: Application documents directory
+    Directory baseDirectory;
+    
+    if (Platform.isAndroid) {
+      // For Android, use external storage directory
+      // Path: /storage/emulated/0/Android/data/[package]/files/zippy
+      // Note: This is visible in file managers but still deleted on app uninstall
+      // For true persistence, would need MediaStore API with MANAGE_EXTERNAL_STORAGE permission
+      try {
+        baseDirectory = await getExternalStorageDirectory() ?? await getApplicationDocumentsDirectory();
+      } catch (e) {
+        // Fall back to application documents directory
+        baseDirectory = await getApplicationDocumentsDirectory();
+      }
+    } else if (Platform.isLinux) {
+      // For Linux, use Documents directory in user's home
+      // Path: ~/Documents/zippy
+      // This persists after app uninstall
+      try {
+        final home = Platform.environment['HOME'];
+        if (home != null) {
+          baseDirectory = Directory('$home/Documents');
+        } else {
+          baseDirectory = await getApplicationDocumentsDirectory();
+        }
+      } catch (e) {
+        baseDirectory = await getApplicationDocumentsDirectory();
+      }
+    } else {
+      // For macOS, Windows, and other platforms, use application documents directory
+      // On macOS, this typically points to ~/Library/Containers/app/Data/Documents
+      baseDirectory = await getApplicationDocumentsDirectory();
+    }
+    
+    // Create a 'zippy' subdirectory for storing archives
+    _appDirectory = Directory('${baseDirectory.path}/zippy');
+    
+    // Create the directory if it doesn't exist
+    if (!await _appDirectory.exists()) {
+      await _appDirectory.create(recursive: true);
+    }
+    
     _prefs = await SharedPreferences.getInstance();
   }
   
