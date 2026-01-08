@@ -15,14 +15,17 @@ class StorageService {
   static const String _archivesKey = 'archives';
   
   Future<void> initialize() async {
-    // Use external storage directory which persists across app uninstalls
-    // This is the app-specific directory in external storage
+    // Use platform-appropriate storage directory for archives
+    // Android: External storage (app-specific, visible but still deleted on uninstall)
+    // Linux: Documents directory in user's home (persists)
+    // Other platforms: Application documents directory
     Directory? baseDirectory;
     
     if (Platform.isAndroid) {
       // For Android, use external storage directory
-      // Path: /storage/emulated/0/Android/data/com.example.zippy/files
-      // Note: This requires the app to handle permissions properly
+      // Path: /storage/emulated/0/Android/data/[package]/files/zippy
+      // Note: This is visible in file managers but still deleted on app uninstall
+      // For true persistence, would need MediaStore API with MANAGE_EXTERNAL_STORAGE permission
       try {
         baseDirectory = await getExternalStorageDirectory();
       } catch (e) {
@@ -31,6 +34,8 @@ class StorageService {
       }
     } else if (Platform.isLinux) {
       // For Linux, use Documents directory in user's home
+      // Path: ~/Documents/zippy
+      // This persists after app uninstall
       try {
         final home = Platform.environment['HOME'];
         if (home != null) {
