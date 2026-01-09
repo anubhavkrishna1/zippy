@@ -1,12 +1,14 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import '../models/archive.dart';
 import '../models/file_item.dart';
 import '../services/storage_service.dart';
 import '../services/archive_service.dart';
 import '../widgets/file_item_card.dart';
 import '../utils/format_utils.dart';
+import 'file_preview_screen.dart';
 
 class ArchiveDetailScreen extends StatefulWidget {
   final Archive archive;
@@ -219,6 +221,153 @@ class _ArchiveDetailScreenState extends State<ArchiveDetailScreen> {
     }
   }
 
+  Future<void> _exportFile(FileItem file) async {
+    try {
+      setState(() => _isLoading = true);
+
+      // Get downloads directory (or temp directory as fallback)
+      Directory? directory;
+      if (Platform.isAndroid) {
+        directory = await getExternalStorageDirectory();
+      } else {
+        directory = await getApplicationDocumentsDirectory();
+      }
+      
+      if (directory == null) {
+        throw Exception('Could not access storage directory');
+      }
+
+      // Create a Downloads subdirectory
+      final downloadsDir = Directory('${directory.path}/Downloads');
+      if (!await downloadsDir.exists()) {
+        await downloadsDir.create(recursive: true);
+      }
+
+      final filePath = '${downloadsDir.path}/${file.name}';
+      final result = await ArchiveService.instance.exportFile(
+        widget.archive.id,
+        _password,
+        file.name,
+        filePath,
+      );
+
+      setState(() => _isLoading = false);
+
+      if (result != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('File exported to: ${downloadsDir.path}'),
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'OK',
+              onPressed: () {},
+            ),
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to export file')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error exporting file: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _exportAllFiles() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Extract All Files'),
+        content: Text('Extract all ${_files.length} file(s) to Downloads folder?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Extract'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      setState(() => _isLoading = true);
+
+      // Get downloads directory (or temp directory as fallback)
+      Directory? directory;
+      if (Platform.isAndroid) {
+        directory = await getExternalStorageDirectory();
+      } else {
+        directory = await getApplicationDocumentsDirectory();
+      }
+      
+      if (directory == null) {
+        throw Exception('Could not access storage directory');
+      }
+
+      // Create a Downloads subdirectory with archive name
+      final downloadsDir = Directory('${directory.path}/Downloads/${widget.archive.name}');
+      if (!await downloadsDir.exists()) {
+        await downloadsDir.create(recursive: true);
+      }
+
+      final extractedFiles = await ArchiveService.instance.extractAllFiles(
+        widget.archive.id,
+        _password,
+        downloadsDir.path,
+      );
+
+      setState(() => _isLoading = false);
+
+      if (extractedFiles.isNotEmpty && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Extracted ${extractedFiles.length} file(s) to: ${downloadsDir.path}'),
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'OK',
+              onPressed: () {},
+            ),
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to extract files')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error extracting files: $e')),
+        );
+      }
+    }
+  }
+
+  void _openFilePreview(FileItem file) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FilePreviewScreen(
+          file: file,
+          archiveId: widget.archive.id,
+          password: _password,
+        ),
+      ),
+    );
+  }
+
   String _formatTotalSize() {
     final totalSize = _files.fold<int>(0, (sum, file) => sum + file.size);
     return FormatUtils.formatSize(totalSize);
@@ -236,6 +385,12 @@ class _ArchiveDetailScreenState extends State<ArchiveDetailScreen> {
       appBar: AppBar(
         title: Text(widget.archive.name),
         actions: [
+          if (_files.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.download),
+              onPressed: _exportAllFiles,
+              tooltip: 'Extract all files',
+            ),
           IconButton(
             icon: const Icon(Icons.info_outline),
             onPressed: () {
@@ -340,6 +495,8 @@ class _ArchiveDetailScreenState extends State<ArchiveDetailScreen> {
                           return FileItemCard(
                             file: file,
                             onDelete: () => _removeFile(file),
+                            onTap: () => _openFilePreview(file),
+                            onExport: () => _exportFile(file),
                           );
                         },
                       ),
