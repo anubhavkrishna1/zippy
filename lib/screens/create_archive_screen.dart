@@ -70,7 +70,7 @@ class _CreateArchiveScreenState extends State<CreateArchiveScreen> {
 
     try {
       final archiveId = DateTime.now().millisecondsSinceEpoch.toString();
-      final archive = Archive(
+      var archive = Archive(
         id: archiveId,
         name: _nameController.text.trim(),
         createdAt: DateTime.now(),
