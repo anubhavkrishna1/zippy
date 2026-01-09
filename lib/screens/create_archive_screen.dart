@@ -39,10 +39,17 @@ class _CreateArchiveScreenState extends State<CreateArchiveScreen> {
 
     if (result != null) {
       setState(() {
-        _selectedFiles = result.paths
+        final newFiles = result.paths
             .where((path) => path != null)
             .map((path) => File(path!))
             .toList();
+        
+        // Append new files to existing selection, avoiding duplicates
+        for (final file in newFiles) {
+          if (!_selectedFiles.any((f) => f.path == file.path)) {
+            _selectedFiles.add(file);
+          }
+        }
       });
     }
   }

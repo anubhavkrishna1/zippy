@@ -3,11 +3,30 @@ import 'package:path_provider/path_provider.dart';
 
 class FileExportUtils {
   /// Get the Downloads directory for exporting files
-  /// Returns the external storage directory on Android, documents directory on other platforms
+  /// Returns the Downloads directory on Android, documents directory on other platforms
   static Future<Directory> getExportDirectory() async {
     Directory? directory;
     if (Platform.isAndroid) {
-      directory = await getExternalStorageDirectory();
+      // Try to get the Downloads directory
+      // path_provider's getDownloadsDirectory() may not be available on all versions
+      try {
+        directory = await getDownloadsDirectory();
+      } catch (e) {
+        // Fall back to external storage directory if Downloads not available
+        directory = await getExternalStorageDirectory();
+      }
+      
+      // If we got the app-specific external storage, use public Downloads instead
+      // On Android, we want /storage/emulated/0/Download (the public Downloads folder)
+      if (directory != null && directory.path.contains('/Android/data/')) {
+        // Use the public Downloads directory
+        // Path: /storage/emulated/0/Download
+        final parts = directory.path.split('/Android/data/');
+        if (parts.isNotEmpty) {
+          final basePath = parts[0]; // Gets /storage/emulated/0
+          directory = Directory('$basePath/Download');
+        }
+      }
     } else {
       directory = await getApplicationDocumentsDirectory();
     }
@@ -16,13 +35,17 @@ class FileExportUtils {
       throw Exception('Could not access storage directory');
     }
 
-    // Create a Downloads subdirectory
-    final downloadsDir = Directory('${directory.path}/Downloads');
-    if (!await downloadsDir.exists()) {
-      await downloadsDir.create(recursive: true);
+    // For non-Android platforms, create a Downloads subdirectory
+    if (!Platform.isAndroid) {
+      directory = Directory('${directory.path}/Downloads');
+    }
+    
+    // Ensure the directory exists
+    if (!await directory.exists()) {
+      await directory.create(recursive: true);
     }
 
-    return downloadsDir;
+    return directory;
   }
 
   /// Sanitize a filename to prevent path traversal attacks
