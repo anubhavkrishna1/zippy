@@ -4,6 +4,7 @@ import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
 import '../models/file_item.dart';
+import '../utils/file_export_utils.dart';
 import 'storage_service.dart';
 
 class ArchiveService {
@@ -215,5 +216,101 @@ class ArchiveService {
     } catch (e) {
       return false;
     }
+  }
+
+  // Extract a single file from archive and return its bytes
+  Future<Uint8List?> extractFile(
+    String archiveId,
+    String password,
+    String fileName,
+  ) async {
+    final zipPath = StorageService.instance.getArchivePath(archiveId);
+    final zipFile = File(zipPath);
+    
+    if (!await zipFile.exists()) {
+      throw Exception('Archive file not found');
+    }
+    
+    final encrypted = await zipFile.readAsBytes();
+    final decrypted = _decryptData(encrypted, password);
+    
+    try {
+      final archive = ZipDecoder().decodeBytes(decrypted);
+      
+      for (final file in archive) {
+        if (file.isFile && file.name == fileName) {
+          return Uint8List.fromList(file.content as List<int>);
+        }
+      }
+      
+      return null; // File not found in archive
+    } catch (e) {
+      throw Exception('Failed to decrypt archive or file not found: $e');
+    }
+  }
+
+  // Extract file to external storage
+  Future<String?> exportFile(
+    String archiveId,
+    String password,
+    String fileName,
+    String destinationPath,
+  ) async {
+    final fileBytes = await extractFile(archiveId, password, fileName);
+    if (fileBytes == null) {
+      return null;
+    }
+    
+    final outputFile = File(destinationPath);
+    await outputFile.writeAsBytes(fileBytes);
+    return destinationPath;
+  }
+
+  // Extract all files from archive to a directory
+  Future<List<String>> extractAllFiles(
+    String archiveId,
+    String password,
+    String destinationDir,
+  ) async {
+    final zipPath = StorageService.instance.getArchivePath(archiveId);
+    final zipFile = File(zipPath);
+    
+    if (!await zipFile.exists()) {
+      throw Exception('Archive file not found');
+    }
+    
+    final encrypted = await zipFile.readAsBytes();
+    final decrypted = _decryptData(encrypted, password);
+    
+    final Archive archive;
+    try {
+      archive = ZipDecoder().decodeBytes(decrypted);
+    } catch (e) {
+      throw Exception('Failed to decrypt archive: $e');
+    }
+    
+    final extractedFiles = <String>[];
+    
+    for (final file in archive) {
+      if (file.isFile) {
+        // Extract just the base filename and sanitize it
+        final baseName = file.name.split('/').last.split('\\').last;
+        if (baseName.isEmpty) continue;
+        
+        // Use centralized sanitization
+        final safeName = FileExportUtils.sanitizeFileName(baseName);
+        
+        final filePath = '$destinationDir/$safeName';
+        final outputFile = File(filePath);
+        
+        // Create parent directory if needed
+        await outputFile.parent.create(recursive: true);
+        
+        await outputFile.writeAsBytes(file.content as List<int>);
+        extractedFiles.add(filePath);
+      }
+    }
+    
+    return extractedFiles;
   }
 }

@@ -1,7 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import '../models/archive.dart';
 import '../services/storage_service.dart';
 import '../services/archive_service.dart';
+import '../utils/format_utils.dart';
 
 class CreateArchiveScreen extends StatefulWidget {
   const CreateArchiveScreen({super.key});
@@ -18,6 +21,7 @@ class _CreateArchiveScreenState extends State<CreateArchiveScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isCreating = false;
+  List<File> _selectedFiles = [];
 
   @override
   void dispose() {
@@ -25,6 +29,28 @@ class _CreateArchiveScreenState extends State<CreateArchiveScreen> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickFiles() async {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      type: FileType.any,
+    );
+
+    if (result != null) {
+      setState(() {
+        _selectedFiles = result.paths
+            .where((path) => path != null)
+            .map((path) => File(path!))
+            .toList();
+      });
+    }
+  }
+
+  void _removeFile(int index) {
+    setState(() {
+      _selectedFiles.removeAt(index);
+    });
   }
 
   Future<void> _createArchive() async {
@@ -36,7 +62,7 @@ class _CreateArchiveScreenState extends State<CreateArchiveScreen> {
 
     try {
       final archiveId = DateTime.now().millisecondsSinceEpoch.toString();
-      final archive = Archive(
+      var archive = Archive(
         id: archiveId,
         name: _nameController.text.trim(),
         createdAt: DateTime.now(),
@@ -49,6 +75,26 @@ class _CreateArchiveScreenState extends State<CreateArchiveScreen> {
         archiveId,
         _passwordController.text,
       );
+
+      // Add selected files to the archive if any
+      if (_selectedFiles.isNotEmpty) {
+        await ArchiveService.instance.addFilesToArchive(
+          archiveId,
+          _passwordController.text,
+          _selectedFiles,
+        );
+        
+        // Update archive with file count and size
+        final files = await ArchiveService.instance.getArchiveContents(
+          archiveId,
+          _passwordController.text,
+        );
+        final totalSize = files.fold<int>(0, (sum, file) => sum + file.size);
+        archive = archive.copyWith(
+          fileCount: files.length,
+          totalSize: totalSize,
+        );
+      }
       
       await StorageService.instance.addArchive(archive);
 
@@ -157,6 +203,89 @@ class _CreateArchiveScreenState extends State<CreateArchiveScreen> {
               },
             ),
             const SizedBox(height: 24),
+            Card(
+              color: Colors.deepPurple[50],
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.folder_open, color: Colors.deepPurple),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Add Files (Optional)',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      _selectedFiles.isEmpty
+                          ? 'No files selected. You can add files later.'
+                          : '${_selectedFiles.length} file(s) selected',
+                      style: TextStyle(color: Colors.grey[700]),
+                    ),
+                    const SizedBox(height: 12),
+                    if (_selectedFiles.isNotEmpty) ...[
+                      SizedBox(
+                        height: 120,
+                        child: ListView.builder(
+                          itemCount: _selectedFiles.length,
+                          itemBuilder: (context, index) {
+                            final file = _selectedFiles[index];
+                            final fileName = file.path.split('/').last;
+                            return ListTile(
+                              dense: true,
+                              leading: const Icon(Icons.insert_drive_file, size: 20),
+                              title: Text(
+                                fileName,
+                                style: const TextStyle(fontSize: 14),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              subtitle: FutureBuilder<int>(
+                                future: file.length(),
+                                builder: (context, snapshot) {
+                                  if (snapshot.hasData) {
+                                    return Text(
+                                      FormatUtils.formatSize(snapshot.data!),
+                                      style: const TextStyle(fontSize: 12),
+                                    );
+                                  }
+                                  return const Text('...', style: TextStyle(fontSize: 12));
+                                },
+                              ),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.close, size: 18),
+                                onPressed: () => _removeFile(index),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    ElevatedButton.icon(
+                      onPressed: _pickFiles,
+                      icon: const Icon(Icons.add),
+                      label: Text(_selectedFiles.isEmpty ? 'Select Files' : 'Add More Files'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple[100],
+                        foregroundColor: Colors.deepPurple[900],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             Card(
               color: Colors.orange[50],
               child: Padding(

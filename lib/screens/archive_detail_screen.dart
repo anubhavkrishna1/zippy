@@ -7,6 +7,8 @@ import '../services/storage_service.dart';
 import '../services/archive_service.dart';
 import '../widgets/file_item_card.dart';
 import '../utils/format_utils.dart';
+import '../utils/file_export_utils.dart';
+import 'file_preview_screen.dart';
 
 class ArchiveDetailScreen extends StatefulWidget {
   final Archive archive;
@@ -219,6 +221,148 @@ class _ArchiveDetailScreenState extends State<ArchiveDetailScreen> {
     }
   }
 
+  Future<void> _exportFile(FileItem file) async {
+    try {
+      setState(() => _isLoading = true);
+
+      final downloadsDir = await FileExportUtils.getExportDirectory();
+      
+      // Get unique file path to avoid overwriting
+      final filePath = await FileExportUtils.getUniqueFilePath(
+        downloadsDir.path,
+        file.name,
+      );
+      
+      final result = await ArchiveService.instance.exportFile(
+        widget.archive.id,
+        _password,
+        file.name,
+        filePath,
+      );
+
+      setState(() => _isLoading = false);
+
+      if (result != null && mounted) {
+        final fileName = filePath.split('/').last;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('File exported as: $fileName'),
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'OK',
+              onPressed: () {},
+            ),
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to export file')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error exporting file: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _exportAllFiles() async {
+    try {
+      // First check if files will be overwritten
+      final downloadsDir = await FileExportUtils.getExportDirectory();
+      final archiveDir = Directory('${downloadsDir.path}/${widget.archive.name}');
+      
+      int existingCount = 0;
+      if (await archiveDir.exists()) {
+        final fileNames = _files.map((f) => f.name).toList();
+        existingCount = await FileExportUtils.countExistingFiles(
+          archiveDir.path,
+          fileNames,
+        );
+      }
+
+      String confirmMessage = 'Extract all ${_files.length} file(s) to Downloads folder?';
+      if (existingCount > 0) {
+        confirmMessage = 'Extract all ${_files.length} file(s)?\n\nWarning: $existingCount existing file(s) will be overwritten.';
+      }
+
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Extract All Files'),
+          content: Text(confirmMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Extract'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed != true) return;
+
+      setState(() => _isLoading = true);
+
+      // Create the archive subdirectory
+      if (!await archiveDir.exists()) {
+        await archiveDir.create(recursive: true);
+      }
+
+      final extractedFiles = await ArchiveService.instance.extractAllFiles(
+        widget.archive.id,
+        _password,
+        archiveDir.path,
+      );
+
+      setState(() => _isLoading = false);
+
+      if (extractedFiles.isNotEmpty && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Extracted ${extractedFiles.length} file(s) to: ${archiveDir.path}'),
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'OK',
+              onPressed: () {},
+            ),
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No files were extracted')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error extracting files: $e')),
+        );
+      }
+    }
+  }
+
+  void _openFilePreview(FileItem file) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FilePreviewScreen(
+          file: file,
+          archiveId: widget.archive.id,
+          password: _password,
+        ),
+      ),
+    );
+  }
+
   String _formatTotalSize() {
     final totalSize = _files.fold<int>(0, (sum, file) => sum + file.size);
     return FormatUtils.formatSize(totalSize);
@@ -236,6 +380,12 @@ class _ArchiveDetailScreenState extends State<ArchiveDetailScreen> {
       appBar: AppBar(
         title: Text(widget.archive.name),
         actions: [
+          if (_files.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.download),
+              onPressed: _exportAllFiles,
+              tooltip: 'Extract all files',
+            ),
           IconButton(
             icon: const Icon(Icons.info_outline),
             onPressed: () {
@@ -340,6 +490,8 @@ class _ArchiveDetailScreenState extends State<ArchiveDetailScreen> {
                           return FileItemCard(
                             file: file,
                             onDelete: () => _removeFile(file),
+                            onTap: () => _openFilePreview(file),
+                            onExport: () => _exportFile(file),
                           );
                         },
                       ),

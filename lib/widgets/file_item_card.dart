@@ -4,11 +4,15 @@ import '../models/file_item.dart';
 class FileItemCard extends StatelessWidget {
   final FileItem file;
   final VoidCallback onDelete;
+  final VoidCallback? onTap;
+  final VoidCallback? onExport;
 
   const FileItemCard({
     super.key,
     required this.file,
     required this.onDelete,
+    this.onTap,
+    this.onExport,
   });
 
   IconData _getFileIcon(String fileName) {
@@ -70,11 +74,23 @@ class FileItemCard extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Text(file.formattedSize),
-        trailing: IconButton(
-          icon: const Icon(Icons.delete, color: Colors.red),
-          onPressed: onDelete,
-          tooltip: 'Remove file',
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (onExport != null)
+              IconButton(
+                icon: const Icon(Icons.download, color: Colors.blue),
+                onPressed: onExport,
+                tooltip: 'Export file',
+              ),
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: onDelete,
+              tooltip: 'Remove file',
+            ),
+          ],
         ),
+        onTap: onTap,
       ),
     );
   }
