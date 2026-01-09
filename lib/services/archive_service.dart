@@ -4,6 +4,7 @@ import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
 import '../models/file_item.dart';
+import '../utils/file_export_utils.dart';
 import 'storage_service.dart';
 
 class ArchiveService {
@@ -292,13 +293,12 @@ class ArchiveService {
     
     for (final file in archive) {
       if (file.isFile) {
-        // Sanitize filename to prevent path traversal
-        // Use only the base filename, not any path components
-        final sanitizedName = file.name.split('/').last.split('\\').last;
-        if (sanitizedName.isEmpty) continue;
+        // Extract just the base filename and sanitize it
+        final baseName = file.name.split('/').last.split('\\').last;
+        if (baseName.isEmpty) continue;
         
-        // Remove dangerous characters
-        final safeName = sanitizedName.replaceAll(RegExp(r'[<>:"|?*]'), '_');
+        // Use centralized sanitization
+        final safeName = FileExportUtils.sanitizeFileName(baseName);
         
         final filePath = '$destinationDir/$safeName';
         final outputFile = File(filePath);
