@@ -22,6 +22,9 @@ class FilePreviewScreen extends StatefulWidget {
 }
 
 class _FilePreviewScreenState extends State<FilePreviewScreen> {
+  static const _imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
+  static const _textExtensions = ['txt', 'md', 'json', 'xml', 'html', 'css', 'js', 'dart', 'yaml', 'yml'];
+  
   bool _isLoading = true;
   Uint8List? _fileBytes;
   String? _error;
@@ -65,7 +68,7 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
     if (_fileBytes == null) return;
 
     try {
-      // Get downloads directory (or temp directory as fallback)
+      // Get downloads directory (or documents directory for non-Android)
       Directory? directory;
       if (Platform.isAndroid) {
         directory = await getExternalStorageDirectory();
@@ -118,12 +121,12 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
 
   bool _isImageFile() {
     final ext = _getFileExtension();
-    return ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].contains(ext);
+    return _imageExtensions.contains(ext);
   }
 
   bool _isTextFile() {
     final ext = _getFileExtension();
-    return ['txt', 'md', 'json', 'xml', 'html', 'css', 'js', 'dart', 'yaml', 'yml'].contains(ext);
+    return _textExtensions.contains(ext);
   }
 
   Widget _buildPreviewContent() {

@@ -225,7 +225,7 @@ class _ArchiveDetailScreenState extends State<ArchiveDetailScreen> {
     try {
       setState(() => _isLoading = true);
 
-      // Get downloads directory (or temp directory as fallback)
+      // Get downloads directory (or documents directory for non-Android)
       Directory? directory;
       if (Platform.isAndroid) {
         directory = await getExternalStorageDirectory();
@@ -303,7 +303,7 @@ class _ArchiveDetailScreenState extends State<ArchiveDetailScreen> {
     try {
       setState(() => _isLoading = true);
 
-      // Get downloads directory (or temp directory as fallback)
+      // Get downloads directory (or documents directory for non-Android)
       Directory? directory;
       if (Platform.isAndroid) {
         directory = await getExternalStorageDirectory();
