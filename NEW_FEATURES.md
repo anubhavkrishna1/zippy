@@ -29,7 +29,7 @@ Users can now preview files directly within the app before extracting them.
 
 ### Supported File Types
 - **Images**: JPG, JPEG, PNG, GIF, BMP, WEBP (with zoom and pan support)
-- **Text Files**: TXT, MD, JSON, XML, HTML, CSS, JS, DART, YAML (with syntax highlighting)
+- **Text Files**: TXT, MD, JSON, XML, HTML, CSS, JS, DART, YAML (displayed in a monospace font)
 - **Other Files**: Shows file info and option to export
 
 ### How It Works

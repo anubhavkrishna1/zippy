@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 import '../models/file_item.dart';
 import '../services/archive_service.dart';
+import '../utils/file_export_utils.dart';
 
 class FilePreviewScreen extends StatefulWidget {
   final FileItem file;
@@ -68,32 +68,22 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
     if (_fileBytes == null) return;
 
     try {
-      // Get downloads directory (or documents directory for non-Android)
-      Directory? directory;
-      if (Platform.isAndroid) {
-        directory = await getExternalStorageDirectory();
-      } else {
-        directory = await getApplicationDocumentsDirectory();
-      }
+      final downloadsDir = await FileExportUtils.getExportDirectory();
       
-      if (directory == null) {
-        throw Exception('Could not access storage directory');
-      }
-
-      // Create a Downloads subdirectory
-      final downloadsDir = Directory('${directory.path}/Downloads');
-      if (!await downloadsDir.exists()) {
-        await downloadsDir.create(recursive: true);
-      }
-
-      final filePath = '${downloadsDir.path}/${widget.file.name}';
+      // Get unique file path to avoid overwriting
+      final filePath = await FileExportUtils.getUniqueFilePath(
+        downloadsDir.path,
+        widget.file.name,
+      );
+      
       final file = File(filePath);
       await file.writeAsBytes(_fileBytes!);
 
       if (mounted) {
+        final fileName = filePath.split('/').last;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('File exported to: ${downloadsDir.path}'),
+            content: Text('File exported as: $fileName'),
             duration: const Duration(seconds: 4),
             action: SnackBarAction(
               label: 'OK',

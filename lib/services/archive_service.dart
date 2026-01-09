@@ -223,17 +223,17 @@ class ArchiveService {
     String password,
     String fileName,
   ) async {
+    final zipPath = StorageService.instance.getArchivePath(archiveId);
+    final zipFile = File(zipPath);
+    
+    if (!await zipFile.exists()) {
+      throw Exception('Archive file not found');
+    }
+    
+    final encrypted = await zipFile.readAsBytes();
+    final decrypted = _decryptData(encrypted, password);
+    
     try {
-      final zipPath = StorageService.instance.getArchivePath(archiveId);
-      final zipFile = File(zipPath);
-      
-      if (!await zipFile.exists()) {
-        return null;
-      }
-      
-      final encrypted = await zipFile.readAsBytes();
-      final decrypted = _decryptData(encrypted, password);
-      
       final archive = ZipDecoder().decodeBytes(decrypted);
       
       for (final file in archive) {
@@ -242,9 +242,9 @@ class ArchiveService {
         }
       }
       
-      return null;
+      return null; // File not found in archive
     } catch (e) {
-      return null;
+      throw Exception('Failed to decrypt archive or file not found: $e');
     }
   }
 
@@ -255,18 +255,14 @@ class ArchiveService {
     String fileName,
     String destinationPath,
   ) async {
-    try {
-      final fileBytes = await extractFile(archiveId, password, fileName);
-      if (fileBytes == null) {
-        return null;
-      }
-      
-      final outputFile = File(destinationPath);
-      await outputFile.writeAsBytes(fileBytes);
-      return destinationPath;
-    } catch (e) {
+    final fileBytes = await extractFile(archiveId, password, fileName);
+    if (fileBytes == null) {
       return null;
     }
+    
+    final outputFile = File(destinationPath);
+    await outputFile.writeAsBytes(fileBytes);
+    return destinationPath;
   }
 
   // Extract all files from archive to a directory
@@ -275,37 +271,46 @@ class ArchiveService {
     String password,
     String destinationDir,
   ) async {
-    try {
-      final zipPath = StorageService.instance.getArchivePath(archiveId);
-      final zipFile = File(zipPath);
-      
-      if (!await zipFile.exists()) {
-        return [];
-      }
-      
-      final encrypted = await zipFile.readAsBytes();
-      final decrypted = _decryptData(encrypted, password);
-      
-      final archive = ZipDecoder().decodeBytes(decrypted);
-      
-      final extractedFiles = <String>[];
-      
-      for (final file in archive) {
-        if (file.isFile) {
-          final filePath = '$destinationDir/${file.name}';
-          final outputFile = File(filePath);
-          
-          // Create parent directory if needed
-          await outputFile.parent.create(recursive: true);
-          
-          await outputFile.writeAsBytes(file.content as List<int>);
-          extractedFiles.add(filePath);
-        }
-      }
-      
-      return extractedFiles;
-    } catch (e) {
-      return [];
+    final zipPath = StorageService.instance.getArchivePath(archiveId);
+    final zipFile = File(zipPath);
+    
+    if (!await zipFile.exists()) {
+      throw Exception('Archive file not found');
     }
+    
+    final encrypted = await zipFile.readAsBytes();
+    final decrypted = _decryptData(encrypted, password);
+    
+    final Archive archive;
+    try {
+      archive = ZipDecoder().decodeBytes(decrypted);
+    } catch (e) {
+      throw Exception('Failed to decrypt archive: $e');
+    }
+    
+    final extractedFiles = <String>[];
+    
+    for (final file in archive) {
+      if (file.isFile) {
+        // Sanitize filename to prevent path traversal
+        // Use only the base filename, not any path components
+        final sanitizedName = file.name.split('/').last.split('\\').last;
+        if (sanitizedName.isEmpty) continue;
+        
+        // Remove dangerous characters
+        final safeName = sanitizedName.replaceAll(RegExp(r'[<>:"|?*]'), '_');
+        
+        final filePath = '$destinationDir/$safeName';
+        final outputFile = File(filePath);
+        
+        // Create parent directory if needed
+        await outputFile.parent.create(recursive: true);
+        
+        await outputFile.writeAsBytes(file.content as List<int>);
+        extractedFiles.add(filePath);
+      }
+    }
+    
+    return extractedFiles;
   }
 }

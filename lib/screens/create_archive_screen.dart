@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import '../models/archive.dart';
 import '../services/storage_service.dart';
 import '../services/archive_service.dart';
+import '../utils/format_utils.dart';
 
 class CreateArchiveScreen extends StatefulWidget {
   const CreateArchiveScreen({super.key});
@@ -50,15 +51,6 @@ class _CreateArchiveScreenState extends State<CreateArchiveScreen> {
     setState(() {
       _selectedFiles.removeAt(index);
     });
-  }
-
-  String _formatFileSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
   Future<void> _createArchive() async {
@@ -261,7 +253,7 @@ class _CreateArchiveScreenState extends State<CreateArchiveScreen> {
                                 builder: (context, snapshot) {
                                   if (snapshot.hasData) {
                                     return Text(
-                                      _formatFileSize(snapshot.data!),
+                                      FormatUtils.formatSize(snapshot.data!),
                                       style: const TextStyle(fontSize: 12),
                                     );
                                   }

@@ -1,13 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:path_provider/path_provider.dart';
 import '../models/archive.dart';
 import '../models/file_item.dart';
 import '../services/storage_service.dart';
 import '../services/archive_service.dart';
 import '../widgets/file_item_card.dart';
 import '../utils/format_utils.dart';
+import '../utils/file_export_utils.dart';
 import 'file_preview_screen.dart';
 
 class ArchiveDetailScreen extends StatefulWidget {
@@ -225,25 +225,14 @@ class _ArchiveDetailScreenState extends State<ArchiveDetailScreen> {
     try {
       setState(() => _isLoading = true);
 
-      // Get downloads directory (or documents directory for non-Android)
-      Directory? directory;
-      if (Platform.isAndroid) {
-        directory = await getExternalStorageDirectory();
-      } else {
-        directory = await getApplicationDocumentsDirectory();
-      }
+      final downloadsDir = await FileExportUtils.getExportDirectory();
       
-      if (directory == null) {
-        throw Exception('Could not access storage directory');
-      }
-
-      // Create a Downloads subdirectory
-      final downloadsDir = Directory('${directory.path}/Downloads');
-      if (!await downloadsDir.exists()) {
-        await downloadsDir.create(recursive: true);
-      }
-
-      final filePath = '${downloadsDir.path}/${file.name}';
+      // Get unique file path to avoid overwriting
+      final filePath = await FileExportUtils.getUniqueFilePath(
+        downloadsDir.path,
+        file.name,
+      );
+      
       final result = await ArchiveService.instance.exportFile(
         widget.archive.id,
         _password,
@@ -254,9 +243,10 @@ class _ArchiveDetailScreenState extends State<ArchiveDetailScreen> {
       setState(() => _isLoading = false);
 
       if (result != null && mounted) {
+        final fileName = filePath.split('/').last;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('File exported to: ${downloadsDir.path}'),
+            content: Text('File exported as: $fileName'),
             duration: const Duration(seconds: 4),
             action: SnackBarAction(
               label: 'OK',
@@ -280,51 +270,56 @@ class _ArchiveDetailScreenState extends State<ArchiveDetailScreen> {
   }
 
   Future<void> _exportAllFiles() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Extract All Files'),
-        content: Text('Extract all ${_files.length} file(s) to Downloads folder?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Extract'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
     try {
+      // First check if files will be overwritten
+      final downloadsDir = await FileExportUtils.getExportDirectory();
+      final archiveDir = Directory('${downloadsDir.path}/${widget.archive.name}');
+      
+      int existingCount = 0;
+      if (await archiveDir.exists()) {
+        final fileNames = _files.map((f) => f.name).toList();
+        existingCount = await FileExportUtils.countExistingFiles(
+          archiveDir.path,
+          fileNames,
+        );
+      }
+
+      String confirmMessage = 'Extract all ${_files.length} file(s) to Downloads folder?';
+      if (existingCount > 0) {
+        confirmMessage = 'Extract all ${_files.length} file(s)?\n\nWarning: $existingCount existing file(s) will be overwritten.';
+      }
+
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Extract All Files'),
+          content: Text(confirmMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Extract'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed != true) return;
+
       setState(() => _isLoading = true);
 
-      // Get downloads directory (or documents directory for non-Android)
-      Directory? directory;
-      if (Platform.isAndroid) {
-        directory = await getExternalStorageDirectory();
-      } else {
-        directory = await getApplicationDocumentsDirectory();
-      }
-      
-      if (directory == null) {
-        throw Exception('Could not access storage directory');
-      }
-
-      // Create a Downloads subdirectory with archive name
-      final downloadsDir = Directory('${directory.path}/Downloads/${widget.archive.name}');
-      if (!await downloadsDir.exists()) {
-        await downloadsDir.create(recursive: true);
+      // Create the archive subdirectory
+      if (!await archiveDir.exists()) {
+        await archiveDir.create(recursive: true);
       }
 
       final extractedFiles = await ArchiveService.instance.extractAllFiles(
         widget.archive.id,
         _password,
-        downloadsDir.path,
+        archiveDir.path,
       );
 
       setState(() => _isLoading = false);
@@ -332,7 +327,7 @@ class _ArchiveDetailScreenState extends State<ArchiveDetailScreen> {
       if (extractedFiles.isNotEmpty && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Extracted ${extractedFiles.length} file(s) to: ${downloadsDir.path}'),
+            content: Text('Extracted ${extractedFiles.length} file(s) to: ${archiveDir.path}'),
             duration: const Duration(seconds: 4),
             action: SnackBarAction(
               label: 'OK',
@@ -342,7 +337,7 @@ class _ArchiveDetailScreenState extends State<ArchiveDetailScreen> {
         );
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to extract files')),
+          const SnackBar(content: Text('No files were extracted')),
         );
       }
     } catch (e) {
