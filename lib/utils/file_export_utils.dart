@@ -7,23 +7,19 @@ class FileExportUtils {
   static Future<Directory> getExportDirectory() async {
     Directory? directory;
     if (Platform.isAndroid) {
-      // Try to get the Downloads directory
-      // path_provider's getDownloadsDirectory() may not be available on all versions
-      try {
-        directory = await getDownloadsDirectory();
-      } catch (e) {
-        // Fall back to external storage directory if Downloads not available
-        directory = await getExternalStorageDirectory();
-      }
+      // Get the external storage directory (app-specific on Android 10+)
+      directory = await getExternalStorageDirectory();
       
-      // If we got the app-specific external storage, use public Downloads instead
+      // If we got the app-specific external storage, construct path to public Downloads
       // On Android, we want /storage/emulated/0/Download (the public Downloads folder)
-      if (directory != null && directory.path.contains('/Android/data/')) {
-        // Use the public Downloads directory
-        // Path: /storage/emulated/0/Download
-        final parts = directory.path.split('/Android/data/');
-        if (parts.isNotEmpty) {
-          final basePath = parts[0]; // Gets /storage/emulated/0
+      // App-specific path format: /storage/emulated/0/Android/data/{package}/files
+      if (directory != null) {
+        final path = directory.path;
+        final androidDataIndex = path.indexOf('/Android/data/');
+        if (androidDataIndex != -1) {
+          // Extract the base path (e.g., /storage/emulated/0)
+          final basePath = path.substring(0, androidDataIndex);
+          // Construct public Downloads directory path
           directory = Directory('$basePath/Download');
         }
       }

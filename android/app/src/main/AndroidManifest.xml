@@ -1,8 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Storage permissions for accessing external storage -->
-    <!-- For Android < 10: READ/WRITE_EXTERNAL_STORAGE -->
-    <!-- For Android 10-12: Use requestLegacyExternalStorage -->
-    <!-- For Android 13+: File access works differently with scoped storage -->
+    <!-- For Android < 10 (API 28): READ/WRITE_EXTERNAL_STORAGE required for all external access -->
+    <!-- For Android 10-12 (API 29-32): Use requestLegacyExternalStorage for public directories -->
+    <!-- For Android 13+ (API 33+): Scoped storage with granular media permissions -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
