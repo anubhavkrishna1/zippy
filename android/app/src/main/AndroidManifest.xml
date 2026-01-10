@@ -1,16 +1,23 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Storage permissions for accessing external storage -->
-    <!-- These are needed only for Android < 10 for external storage -->
-    <!-- For Android 10+, app-specific directories don't need permissions -->
+    <!-- For Android < 10 (API 28): READ/WRITE_EXTERNAL_STORAGE required for all external access -->
+    <!-- For Android 10-12 (API 29-32): Use requestLegacyExternalStorage for public directories -->
+    <!-- For Android 13+ (API 33+): Scoped storage with granular media permissions -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="28" />
+        android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="28" />
+        android:maxSdkVersion="32" />
     
     <application
         android:label="Zippy"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:requestLegacyExternalStorage="true">
+        <!-- NOTE: requestLegacyExternalStorage is a temporary workaround for Android 10 (API 29).
+             This flag is ignored when targeting API 30+ (Android 11+).
+             Future versions targeting API 30+ will need to migrate to MediaStore API 
+             or Storage Access Framework for public Downloads access.
+             See: https://developer.android.com/training/data-storage/shared/media -->
         <activity
             android:name=".MainActivity"
             android:exported="true"

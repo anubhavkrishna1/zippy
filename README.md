@@ -54,12 +54,13 @@ flutter run
 
 ### Adding Files During Archive Creation (NEW!)
 
-When creating a new archive, you can now add files immediately:
+When creating a new archive, you can now add multiple files immediately:
 
 1. In the "Add Files (Optional)" section, tap **Select Files**
-2. Choose one or more files from your device
-3. Review the selected files (you can remove any before creating)
-4. The files will be automatically added when you create the archive
+2. Choose one or more files from your device (multiple selection is supported)
+3. To add more files, tap **Add More Files** and select additional files
+4. Review the selected files (you can remove any before creating)
+5. The files will be automatically added when you create the archive
 
 ### Previewing Files (NEW!)
 
@@ -78,12 +79,14 @@ Export files from your archives to device storage:
 **Single File Export:**
 1. Open an archive
 2. Tap the download icon (📥) next to any file
-3. File will be exported to Downloads folder
+3. File will be exported to the Downloads folder
 
 **Extract All Files:**
 1. Open an archive
 2. Tap the download icon (📥) in the app bar
 3. All files will be extracted to `Downloads/{archive-name}/`
+
+**Location on Android:** Files are exported to the public Downloads directory (`/storage/emulated/0/Download/`) where they are easily accessible through your device's file manager or Downloads app.
 
 Exported files are saved in unencrypted form.
 
