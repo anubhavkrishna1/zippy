@@ -4,6 +4,9 @@ import 'package:path_provider/path_provider.dart';
 class FileExportUtils {
   /// Get the Downloads directory for exporting files
   /// Returns the Downloads directory on Android, documents directory on other platforms
+  /// 
+  /// Note: On Android 10+ (API 29+), this uses requestLegacyExternalStorage for compatibility.
+  /// For apps targeting API 30+, consider migrating to MediaStore API or Storage Access Framework.
   static Future<Directory> getExportDirectory() async {
     Directory? directory;
     if (Platform.isAndroid) {
@@ -21,6 +24,13 @@ class FileExportUtils {
           final basePath = path.substring(0, androidDataIndex);
           // Construct public Downloads directory path
           directory = Directory('$basePath/Download');
+        } else {
+          // Fallback: path format is not as expected; use app-specific directory
+          // and log a warning to help diagnose storage configuration issues.
+          print(
+            'FileExportUtils.getExportDirectory: Unexpected external storage path "$path"; '
+            'using app-specific directory instead of public Downloads.',
+          );
         }
       }
     } else {
@@ -38,7 +48,23 @@ class FileExportUtils {
     
     // Ensure the directory exists
     if (!await directory.exists()) {
-      await directory.create(recursive: true);
+      try {
+        await directory.create(recursive: true);
+      } on FileSystemException catch (e) {
+        // Provide clearer feedback for permission/scoped storage issues
+        if (Platform.isAndroid) {
+          throw Exception(
+            'Unable to create export directory at ${directory.path}. '
+            'This may be due to Android scoped storage or missing storage permissions. '
+            'Original error: ${e.message}',
+          );
+        } else {
+          throw Exception(
+            'Unable to create export directory at ${directory.path}. '
+            'Original error: ${e.message}',
+          );
+        }
+      }
     }
 
     return directory;

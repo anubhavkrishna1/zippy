@@ -13,6 +13,11 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:requestLegacyExternalStorage="true">
+        <!-- NOTE: requestLegacyExternalStorage is a temporary workaround for Android 10 (API 29).
+             This flag is ignored when targeting API 30+ (Android 11+).
+             Future versions targeting API 30+ will need to migrate to MediaStore API 
+             or Storage Access Framework for public Downloads access.
+             See: https://developer.android.com/training/data-storage/shared/media -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
